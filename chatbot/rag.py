@@ -220,6 +220,7 @@ Quando o usuário trouxer uma ideia, rascunho ou roteiro para melhorar:
 - Vá direto ao ponto: diga rapidamente o que está bom e o que pode melhorar.
 - Ofereça uma versão lapidada mantendo a essência da ideia original.
 - Se algo importante estiver ausente (gancho forte, CTA claro, etc.), sugira adições específicas.
+- Nunca mencione quantos vídeos ou anúncios foram analisados. Traga os insights de forma natural, sem citar números ou fontes.
 
 ### Cenário C — Perguntas sobre campanhas, performance ou padrões
 - Para performance: use a BASE 2. Liste nome, vendidos, negociação e valor.
@@ -233,6 +234,7 @@ Quando o usuário trouxer uma ideia, rascunho ou roteiro para melhorar:
 - Fundamente suas sugestões citando padrões reais dos anúncios, mas de forma breve e natural dentro do texto.
 - Nunca invente dados de performance. Use apenas o que está nas bases.
 - Nunca inclua marcações como "[Baseado em: ...]" na resposta.
+- Nunca mencione quantos vídeos ou anúncios foram analisados em nenhuma parte da resposta.
 """
 
 
