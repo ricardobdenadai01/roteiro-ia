@@ -1,57 +1,111 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+import time
+import traceback
+from collections import defaultdict
+from pathlib import Path
 
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from app.config import settings
 from chatbot.models import ChatRequest, ChatResponse, Message
+from chatbot.sessions import load_history, save_history, delete_history
 from chatbot import rag
+
+_FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 app = FastAPI(
     title="Roteiro IA — Chatbot",
     description="Chatbot RAG para criação e lapidação de roteiros de vídeo com base em anúncios de sucesso.",
-    version="1.0.0",
+    version="2.0.0",
 )
 
+origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Memória de sessão em memória (por session_id)
-_sessions: dict[str, list[Message]] = {}
+# ── Rate limiting (in-memory, per-IP) ────────────────────────────
+_RATE_LIMIT = 30  # requests
+_RATE_WINDOW = 60  # seconds
+_hits: dict[str, list[float]] = defaultdict(list)
 
 
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    skip = ("/", "/docs", "/openapi.json", "/app")
+    if request.url.path in skip or request.url.path.startswith("/static"):
+        return await call_next(request)
+
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    window_start = now - _RATE_WINDOW
+    _hits[client_ip] = [t for t in _hits[client_ip] if t > window_start]
+
+    if len(_hits[client_ip]) >= _RATE_LIMIT:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Rate limit excedido. Tente novamente em breve."},
+        )
+
+    _hits[client_ip].append(now)
+    return await call_next(request)
+
+
+# ── Auth dependency ──────────────────────────────────────────────
+def _check_api_key(request: Request) -> None:
+    if not settings.CHATBOT_API_KEY:
+        return
+    key = request.headers.get("x-api-key", "")
+    if key != settings.CHATBOT_API_KEY:
+        raise HTTPException(status_code=401, detail="API key inválida ou ausente.")
+
+
+# ── Routes ───────────────────────────────────────────────────────
 @app.get("/")
 def health():
     return {"status": "ok", "message": "Roteiro IA Chatbot está rodando."}
 
 
+@app.get("/app")
+def serve_frontend():
+    return FileResponse(_FRONTEND_DIR / "index.html")
+
+
 @app.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest):
+def chat(request: ChatRequest, raw_request: Request):
+    _check_api_key(raw_request)
+
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="A mensagem não pode estar vazia.")
 
     session_id = request.session_id
 
-    # Usa histórico do servidor se existir, senão usa o enviado pelo cliente
-    history = _sessions.get(session_id, request.history)
+    history = load_history(session_id) or request.history
 
     try:
         reply, campaigns_used = rag.chat(request.message, history)
     except Exception as e:
-        import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao processar resposta: {str(e)}")
 
-    # Atualiza memória da sessão
     history.append(Message(role="user", content=request.message))
     history.append(Message(role="assistant", content=reply))
-    _sessions[session_id] = history
+
+    try:
+        save_history(session_id, history)
+    except Exception:
+        traceback.print_exc()
 
     return ChatResponse(reply=reply, session_id=session_id, campaigns_used=campaigns_used)
 
 
 @app.delete("/session/{session_id}")
-def clear_session(session_id: str):
-    _sessions.pop(session_id, None)
+def clear_session(session_id: str, request: Request):
+    _check_api_key(request)
+    delete_history(session_id)
     return {"message": f"Sessão '{session_id}' apagada."}

@@ -1,15 +1,14 @@
 -- =============================================
--- SCHEMA — Roteiro IA Coleta v3
--- Foco: Performance de Vendas + Engajamento
+-- SCHEMA — Roteiro IA Coleta v4
+-- Performance de Vendas + Engajamento + Chatbot
 -- =============================================
 
+DROP TABLE IF EXISTS chat_sessions;
+DROP TABLE IF EXISTS analise_anuncios;
 DROP TABLE IF EXISTS ad_engagement;
 DROP TABLE IF EXISTS campaign_engagement;
 DROP TABLE IF EXISTS ad_sales;
 DROP TABLE IF EXISTS campaign_sales;
-DROP TABLE IF EXISTS sector_rankings;
-DROP TABLE IF EXISTS ad_stats;
-DROP TABLE IF EXISTS campaign_stats;
 DROP TABLE IF EXISTS leads;
 
 -- Leads filtrados (Vendido + Negociação) com dados completos
@@ -79,7 +78,34 @@ CREATE TABLE ad_engagement (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Análise de anúncios/vídeos (base de conhecimento do chatbot)
+CREATE TABLE analise_anuncios (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    nome_video VARCHAR(500),
+    anuncio_ads VARCHAR(500),
+    transcricao TEXT,
+    ganchos TEXT,
+    argumentos_venda TEXT,
+    ctas TEXT,
+    tom_voz VARCHAR(255),
+    estrutura_roteiro TEXT,
+    pontos_fortes TEXT,
+    resumo_ia TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Sessões de chat persistidas
+CREATE TABLE chat_sessions (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    session_id VARCHAR(255) NOT NULL UNIQUE,
+    history JSONB DEFAULT '[]',
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Índices
+CREATE INDEX idx_chat_sessions_session_id ON chat_sessions(session_id);
+CREATE INDEX idx_analise_anuncios_nome ON analise_anuncios(nome_video);
 CREATE INDEX idx_leads_status ON leads(status);
 CREATE INDEX idx_leads_campaign ON leads(campaign_name);
 CREATE INDEX idx_leads_ad ON leads(ad_name);

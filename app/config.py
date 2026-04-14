@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash-lite"
 
+    CHATBOT_API_KEY: str = ""
+    ALLOWED_ORIGINS: str = "*"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

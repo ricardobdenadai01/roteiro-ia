@@ -8,3 +8,4 @@ venv/
 dist/
 build/
 test_output.txt
+.pytest_cache/

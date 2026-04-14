@@ -1,16 +1,6 @@
-from supabase import create_client, Client
-from app.config import settings
+from shared.supabase_client import get_client
 
 BATCH_SIZE = 500
-
-_client: Client | None = None
-
-
-def get_client() -> Client:
-    global _client
-    if _client is None:
-        _client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
-    return _client
 
 
 def _insert_batch(table: str, data: list[dict]) -> None:
@@ -61,14 +51,14 @@ def insert_ad_engagement(data: list[dict]) -> None:
     print(f"   ✅ OK!")
 
 
-def clear_tables() -> None:
-    resposta = input(
-        "\n⚠️  Limpar dados anteriores antes de inserir? (s/n): "
-    ).strip().lower()
-
-    if resposta != "s":
-        print("❌ Abortando para evitar duplicatas.")
-        raise SystemExit(1)
+def clear_tables(force: bool = False) -> None:
+    if not force:
+        resposta = input(
+            "\n⚠️  Limpar dados anteriores antes de inserir? (s/n): "
+        ).strip().lower()
+        if resposta != "s":
+            print("❌ Abortando para evitar duplicatas.")
+            raise SystemExit(1)
 
     client = get_client()
     tabelas = ["ad_engagement", "campaign_engagement", "ad_sales", "campaign_sales", "leads"]

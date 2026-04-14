@@ -185,6 +185,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Coleta e análise de dados do CRM")
     parser.add_argument("--start", default=settings.DEFAULT_START_DATE, help="Data início (YYYY-MM-DD)")
     parser.add_argument("--end", default=settings.DEFAULT_END_DATE, help="Data fim (YYYY-MM-DD)")
+    parser.add_argument("--force", action="store_true", help="Limpar tabelas sem confirmação interativa")
     args = parser.parse_args()
 
     start_date = args.start
@@ -223,7 +224,7 @@ def main() -> None:
         print("💾 SALVANDO NO SUPABASE")
         print(f"{SEP}")
 
-        clear_tables()
+        clear_tables(force=args.force)
 
         insert_leads(_prepare_leads_for_db(leads))
         insert_campaign_sales(camp_sales)
