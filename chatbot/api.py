@@ -1,3 +1,4 @@
+import asyncio
 import time
 import traceback
 from collections import defaultdict
@@ -28,6 +29,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Erro interno: {str(exc)}"},
+    )
 
 # ── Rate limiting (in-memory, per-IP) ────────────────────────────
 _RATE_LIMIT = 30  # requests
@@ -77,18 +87,21 @@ def serve_frontend():
 
 
 @app.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest, raw_request: Request):
+async def chat(request: ChatRequest, raw_request: Request):
     _check_api_key(raw_request)
 
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="A mensagem não pode estar vazia.")
 
     session_id = request.session_id
+    loop = asyncio.get_event_loop()
 
-    history = load_history(session_id) or request.history
+    history = await loop.run_in_executor(None, load_history, session_id) or request.history
 
     try:
-        reply, campaigns_used = rag.chat(request.message, history)
+        reply, campaigns_used = await loop.run_in_executor(
+            None, rag.chat, request.message, history
+        )
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Erro ao processar resposta: {str(e)}")
@@ -97,7 +110,7 @@ def chat(request: ChatRequest, raw_request: Request):
     history.append(Message(role="assistant", content=reply))
 
     try:
-        save_history(session_id, history)
+        await loop.run_in_executor(None, save_history, session_id, history)
     except Exception:
         traceback.print_exc()
 
@@ -105,7 +118,8 @@ def chat(request: ChatRequest, raw_request: Request):
 
 
 @app.delete("/session/{session_id}")
-def clear_session(session_id: str, request: Request):
+async def clear_session(session_id: str, request: Request):
     _check_api_key(request)
-    delete_history(session_id)
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, delete_history, session_id)
     return {"message": f"Sessão '{session_id}' apagada."}
