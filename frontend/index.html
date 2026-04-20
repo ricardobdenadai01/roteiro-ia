@@ -323,13 +323,15 @@
     const STORAGE_KEY = 'roteiro_ia_config';
     let config = loadConfig();
 
+    // Substitua pelo URL do seu backend no Render após o deploy:
+    const BACKEND_URL = 'https://SEU-APP.onrender.com';
+
     function loadConfig() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) return JSON.parse(raw);
       } catch {}
-      const defaultUrl = window.location.origin || 'http://localhost:8000';
-      return { apiUrl: defaultUrl, apiKey: '', sessionId: generateId() };
+      return { apiUrl: BACKEND_URL, apiKey: '', sessionId: generateId() };
     }
 
     function saveConfig() {
@@ -342,6 +344,15 @@
     }
 
     saveConfig();
+
+    // Abre modal de config automaticamente se URL ainda é o placeholder
+    window.addEventListener('DOMContentLoaded', () => {
+      if (config.apiUrl.includes('SEU-APP')) {
+        document.getElementById('cfgApiUrl').value = config.apiUrl;
+        document.getElementById('cfgApiKey').value = config.apiKey;
+        settingsModal.classList.add('show');
+      }
+    });
 
     // --- Settings modal ---
     const settingsModal = document.getElementById('settingsModal');
